@@ -1,45 +1,49 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
+from flask import Flask, render_template, request
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
+from sklearn.metrics.pairwise import cosine_similarity
+
+app = Flask(__name__)
 
 
-df = pd.read_csv("placement.csv")
-
-print("Dataset:")
-print(df)
-
-
-X = df[['cgpa', 'aptitude', 'communication']]
-y = df['placed']
-
-
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
+def preprocess(text):
+    text = text.lower()
+    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
+    words = text.split()
+    
+    # Remove stopwords
+    words = [w for w in words if w not in ENGLISH_STOP_WORDS]
+    
+    return " ".join(words)
 
 
-model = LogisticRegression()
-model.fit(X_train, y_train)
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    result = None
+    score = None
+
+    if request.method == 'POST':
+        q1 = preprocess(request.form['q1'])
+        q2 = preprocess(request.form['q2'])
+
+        # TF-IDF with n-grams (better accuracy)
+        vectorizer = TfidfVectorizer(ngram_range=(1,2))
+        vectors = vectorizer.fit_transform([q1, q2])
+
+        # Cosine Similarity
+        similarity = cosine_similarity(vectors[0:1], vectors[1:2])[0][0]
+        score = round(similarity, 2)
+
+        # Adjusted threshold
+        threshold = 0.5
+
+        if similarity >= threshold:
+            result = "Duplicate Question ✅"
+        else:
+            result = "Not Duplicate ❌"
+
+    return render_template('index.html', result=result, score=score)
 
 
-y_pred = model.predict(X_test)
-print("\nModel Accuracy:", accuracy_score(y_test, y_pred))
-
-
-print("\nEnter Student Details:")
-
-cgpa = float(input("Enter CGPA: "))
-aptitude = int(input("Enter Aptitude Score: "))
-communication = int(input("Enter Communication Score: "))
-
-new_student = [[cgpa, aptitude, communication]]
-
-prediction = model.predict(new_student)
-
-
-if prediction[0] == 1:
-    print("✅ Student will be PLACED")
-else:
-    print("❌ Student will NOT be placed")
+if __name__ == '__main__':
+    app.run(debug=True)

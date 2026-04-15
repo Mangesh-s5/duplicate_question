@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Duplicate Question Detection</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Duplicate Question Detection</h1>
+
+      <form method="POST">
+        <textarea name="q1" placeholder="Enter Question 1" required></textarea>
+        <textarea name="q2" placeholder="Enter Question 2" required></textarea>
+
+        <button type="submit">Check Similarity</button>
+      </form>
+
+      {% if result %}
+      <div class="result">
+        <h2>{{ result }}</h2>
+        <p>Similarity Score: {{ score }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </body>
+</html>
