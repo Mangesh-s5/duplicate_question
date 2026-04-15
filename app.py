@@ -1,44 +1,35 @@
 from flask import Flask, render_template, request
-import re
-from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
-from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer, util
 
 app = Flask(__name__)
 
 
-def preprocess(text):
-    text = text.lower()
-    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
-    words = text.split()
-    
-    # Remove stopwords
-    words = [w for w in words if w not in ENGLISH_STOP_WORDS]
-    
-    return " ".join(words)
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+
+def get_similarity(q1, q2):
+    embeddings = model.encode([q1, q2])
+    similarity = util.cos_sim(embeddings[0], embeddings[1]).item()
+    return similarity
 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    result = None
-    score = None
+    result = ""
+    score = 0
 
     if request.method == 'POST':
-        q1 = preprocess(request.form['q1'])
-        q2 = preprocess(request.form['q2'])
+        q1 = request.form['q1']
+        q2 = request.form['q2']
 
-        # TF-IDF with n-grams (better accuracy)
-        vectorizer = TfidfVectorizer(ngram_range=(1,2))
-        vectors = vectorizer.fit_transform([q1, q2])
-
-        # Cosine Similarity
-        similarity = cosine_similarity(vectors[0:1], vectors[1:2])[0][0]
+        similarity = get_similarity(q1, q2)
         score = round(similarity, 2)
 
-        # Adjusted threshold
-        threshold = 0.5
-
-        if similarity >= threshold:
+        
+        if score >= 0.75:
             result = "Duplicate Question ✅"
+        elif score >= 0.5:
+            result = "Partially Similar ⚠️"
         else:
             result = "Not Duplicate ❌"
 
